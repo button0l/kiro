@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VALORANT 募集サイト</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f1115;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .hero {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .hero h1 {
+            font-size: 2.5rem;
+            color: #ff4655;
+            margin-bottom: 12px;
+        }
+        .hero p {
+            color: #aaa;
+            font-size: 1.1rem;
+            margin-bottom: 32px;
+        }
+        .login-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #5865f2;
+            color: #fff;
+            text-decoration: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .login-btn:hover { background: #4752c4; }
+        .login-btn img { width: 24px; }
+        .error {
+            margin-top: 16px;
+            color: #ff4655;
+            font-size: 0.9rem;
+        }
+        .features {
+            display: flex;
+            gap: 24px;
+            margin-top: 48px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .feature {
+            background: #1a1d23;
+            border: 1px solid #2a2d35;
+            border-radius: 12px;
+            padding: 24px;
+            width: 200px;
+            text-align: center;
+        }
+        .feature .icon { font-size: 2rem; margin-bottom: 8px; }
+        .feature h3 { font-size: 0.95rem; color: #ddd; }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>🔥 紳士なトレードマーク</h1>
+        <p>Discordアカウントでログインして、募集状況の確認や評価ができます</p>
+        <a href="/auth/login" class="login-btn">
+            <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png" alt="Discord">
+            Discordでログイン
+        </a>
+        <div class="error" id="error"></div>
+        <div class="features">
+            <div class="feature">
+                <div class="icon">🎮</div>
+                <h3>募集一覧</h3>
+            </div>
+            <div class="feature">
+                <div class="icon">⭐</div>
+                <h3>プレイヤー評価</h3>
+            </div>
+            <div class="feature">
+                <div class="icon">🛡️</div>
+                <h3>治安管理</h3>
+            </div>
+        </div>
+    </div>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const errorMap = {
+            not_member: 'このサーバーのメンバーではありません',
+            token_failed: '認証に失敗しました。もう一度お試しください',
+            server_error: 'サーバーエラーが発生しました',
+        };
+        if (params.get('error')) {
+            document.getElementById('error').textContent = errorMap[params.get('error')] || '不明なエラー';
+        }
+
+        // ログイン済みならダッシュボードへ
+        fetch('/auth/me').then(r => r.json()).then(data => {
+            if (data.loggedIn) location.href = '/dashboard';
+        });
+    </script>
+</body>
+</html>

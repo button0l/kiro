@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>募集ダッシュボード</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f1115; color: #fff; min-height: 100vh; }
+        nav {
+            background: #1a1d23;
+            border-bottom: 1px solid #2a2d35;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        nav .logo { color: #ff4655; font-weight: 700; font-size: 1.1rem; }
+        nav .user { display: flex; align-items: center; gap: 10px; }
+        nav .user img { width: 32px; height: 32px; border-radius: 50%; }
+        nav .user span { font-size: 0.9rem; color: #ccc; }
+        nav .nav-links { display: flex; gap: 16px; }
+        nav .nav-links a { color: #aaa; text-decoration: none; font-size: 0.9rem; }
+        nav .nav-links a:hover { color: #fff; }
+        .container { max-width: 900px; margin: 32px auto; padding: 0 20px; }
+        h2 { font-size: 1.3rem; margin-bottom: 20px; color: #eee; }
+        .recruit-grid { display: grid; gap: 16px; }
+        .recruit-card {
+            background: #1a1d23;
+            border: 1px solid #2a2d35;
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+        .recruit-card:hover { border-color: #ff4655; }
+        .recruit-card .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .recruit-card .mode { font-size: 1.15rem; font-weight: 700; color: #ff4655; }
+        .recruit-card .slots {
+            background: #ff4655;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .recruit-card .slots.full { background: #555; }
+        .recruit-card .meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .recruit-card .meta .tag {
+            background: #0f1115;
+            border: 1px solid #2a2d35;
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 0.8rem;
+            color: #bbb;
+        }
+        .recruit-card .comment {
+            background: #0f1115;
+            border-left: 3px solid #ff4655;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #ccc;
+            margin-bottom: 14px;
+            font-style: italic;
+        }
+        .recruit-card .divider {
+            border: none;
+            border-top: 1px solid #2a2d35;
+            margin-bottom: 12px;
+        }
+        .recruit-card .members-label {
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .recruit-card .members { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .member-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #2a2d35;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            text-decoration: none;
+            color: #ccc;
+            transition: background 0.2s;
+        }
+        .member-chip:hover { background: #3a3d45; color: #fff; }
+        .member-chip img { width: 20px; height: 20px; border-radius: 50%; }
+        .member-chip.host { border: 1px solid #ff4655; color: #ff4655; }
+        .member-chip.host:hover { background: #2a1a1d; }
+        .recruit-card .footer {
+            margin-top: 12px;
+            font-size: 0.75rem;
+            color: #555;
+            text-align: right;
+        }
+        .empty { color: #666; text-align: center; padding: 48px 0; }
+        .loading { color: #666; text-align: center; padding: 48px 0; }
+        .refresh-btn {
+            background: #2a2d35;
+            color: #ccc;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+        .refresh-btn:hover { background: #3a3d45; }
+        .admin-link {
+            display: inline-block;
+            margin-top: 8px;
+            color: #ff4655;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <span class="logo">🔥 VALORANT 募集</span>
+        <div class="nav-links">
+            <a href="/dashboard">ダッシュボード</a>
+            <a href="#" id="myProfileLink">マイプロフィール</a>
+            <a href="/admin-panel" id="adminLink" style="display:none">管理パネル</a>
+            <a href="/auth/logout">ログアウト</a>
+        </div>
+        <div class="user">
+            <a id="avatarLink" href="#"><img id="avatar" src="" alt="" style="width:32px;height:32px;border-radius:50%;border:2px solid #ff4655;"></a>
+            <span id="username"></span>
+        </div>
+    </nav>
+    <div class="container">
+        <h2>🎮 現在の募集一覧</h2>
+        <button class="refresh-btn" onclick="loadRecruitments()">🔄 更新</button>
+        <div class="recruit-grid" id="list">
+            <div class="loading">読み込み中...</div>
+        </div>
+    </div>
+    <script>
+        async function init() {
+            const res = await fetch('/auth/me');
+            const data = await res.json();
+            if (!data.loggedIn) { location.href = '/'; return; }
+
+            const u = data.user;
+            document.getElementById('username').textContent = u.displayName;
+            const avatarUrl = u.avatar
+                ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`
+                : 'https://cdn.discordapp.com/embed/avatars/0.png';
+            document.getElementById('avatar').src = avatarUrl;
+            document.getElementById('avatarLink').href = `/profile?id=${u.id}`;
+            document.getElementById('myProfileLink').href = `/profile?id=${u.id}`;
+            document.getElementById('adminLink').style.display = 'inline';
+        }
+
+        async function loadRecruitments() {
+            const res = await fetch('/api/recruitments');
+            if (!res.ok) { location.href = '/'; return; }
+            const list = await res.json();
+            const container = document.getElementById('list');
+
+            if (list.length === 0) {
+                container.innerHTML = '<div class="empty">現在募集中のパーティーはありません</div>';
+                return;
+            }
+
+            container.innerHTML = list.map(r => {
+                const remaining = r.maxSlots - r.filledSlots;
+                const elapsed = Math.floor((Date.now() - r.createdAt) / 60000);
+
+                const host = r.memberInfos[0];
+                const otherMembers = r.memberInfos.slice(1);
+
+                const hostChip = `<a href="/profile?id=${host.id}" class="member-chip host">
+                    <img src="${host.avatar}" alt="">👑 ${host.displayName}
+                </a>`;
+
+                const memberChips = otherMembers.map(m =>
+                    `<a href="/profile?id=${m.id}" class="member-chip">
+                        <img src="${m.avatar}" alt="">${m.displayName}
+                    </a>`
+                ).join('');
+
+                const emptySlots = Array(remaining).fill(
+                    `<span class="member-chip" style="border:1px dashed #3a3d45;color:#555;cursor:default">＋ 募集中</span>`
+                ).join('');
+
+                return `
+                    <div class="recruit-card">
+                        <div class="header">
+                            <span class="mode">🎮 ${r.mode}</span>
+                            <span class="slots${remaining === 0 ? ' full' : ''}">残り ${remaining} 枠</span>
+                        </div>
+                        <div class="meta">
+                            <span class="tag">👑 募集主: ${r.myRank}</span>
+                            <span class="tag">🎯 募集ランク帯: ${r.targetRank}</span>
+                        </div>
+                        <div class="comment">💬 ${r.comment}</div>
+                        <hr class="divider">
+                        <div class="members-label">パーティーメンバー (${r.filledSlots + 1} / ${r.maxSlots + 1}人)</div>
+                        <div class="members">${hostChip}${memberChips}${emptySlots}</div>
+                        <div class="footer">⏱ ${elapsed}分前に投稿</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        init();
+        loadRecruitments();
+        setInterval(loadRecruitments, 30000); // 30秒ごとに自動更新
+    </script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理パネル</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f1115; color: #fff; min-height: 100vh; }
+        nav {
+            background: #1a1d23;
+            border-bottom: 1px solid #2a2d35;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        nav .logo { color: #ff4655; font-weight: 700; font-size: 1.1rem; }
+        nav .nav-links { display: flex; gap: 16px; }
+        nav .nav-links a { color: #aaa; text-decoration: none; font-size: 0.9rem; }
+        nav .nav-links a:hover { color: #fff; }
+        .container { max-width: 900px; margin: 32px auto; padding: 0 20px; }
+        h2 { font-size: 1.2rem; margin-bottom: 16px; color: #eee; }
+        .section { margin-bottom: 40px; }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table th, .table td {
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid #2a2d35;
+            font-size: 0.85rem;
+        }
+        .table th { color: #888; font-weight: 600; background: #1a1d23; }
+        .table td { color: #ccc; }
+        .table tr:hover td { background: #1a1d23; }
+        .badge-negative {
+            background: #ff4655;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+        }
+        .badge-positive {
+            background: #43b581;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+        }
+        .profile-link { color: #5865f2; text-decoration: none; }
+        .profile-link:hover { text-decoration: underline; }
+        .flag-btn {
+            background: #ff4655;
+            color: #fff;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .flag-btn:hover { background: #cc3344; }
+        .remove-btn {
+            background: #2a2d35;
+            color: #ccc;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .remove-btn:hover { background: #3a3d45; }
+        .flag-form {
+            background: #1a1d23;
+            border: 1px solid #2a2d35;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .flag-form input {
+            background: #0f1115;
+            border: 1px solid #2a2d35;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #fff;
+            font-size: 0.85rem;
+            flex: 1;
+            min-width: 150px;
+        }
+        .flag-form input:focus { outline: none; border-color: #ff4655; }
+        .flag-form button {
+            background: #ff4655;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .empty { color: #666; padding: 24px 0; text-align: center; }
+        .forbidden { color: #ff4655; text-align: center; padding: 48px 0; }
+    </style>
+</head>
+<body>
+    <nav>
+        <span class="logo">🔥 紳士なトレードマーク - 管理パネル</span>
+        <div class="nav-links">
+            <a href="/dashboard">ダッシュボード</a>
+            <a href="/auth/logout">ログアウト</a>
+        </div>
+    </nav>
+    <div class="container" id="content">
+        <div class="empty">読み込み中...</div>
+    </div>
+    <script>
+        async function init() {
+            const meRes = await fetch('/auth/me');
+            const me = await meRes.json();
+            if (!me.loggedIn) { location.href = '/'; return; }
+
+            const flagsRes = await fetch('/admin/flags');
+            if (flagsRes.status === 403) {
+                document.getElementById('content').innerHTML = '<div class="forbidden">⛔ 管理者権限が必要です</div>';
+                return;
+            }
+
+            const flags = await flagsRes.json();
+            renderContent(flags);
+        }
+
+        function renderContent(flags) {
+            const flagRows = flags.length === 0
+                ? '<tr><td colspan="4" style="text-align:center;color:#666">フラグなし</td></tr>'
+                : flags.map(f => {
+                    const date = new Date(f.flagged_at * 1000).toLocaleDateString('ja-JP');
+                    return `
+                        <tr>
+                            <td><a href="/profile?id=${f.user_id}" class="profile-link">${f.user_id}</a></td>
+                            <td>${f.reason}</td>
+                            <td>${date}</td>
+                            <td><button class="remove-btn" onclick="removeFlag(${f.id})">削除</button></td>
+                        </tr>
+                    `;
+                }).join('');
+
+            document.getElementById('content').innerHTML = `
+                <div class="section">
+                    <h2>🚨 管理者フラグ一覧</h2>
+                    <div class="flag-form">
+                        <input type="text" id="flagUserId" placeholder="ユーザーID">
+                        <input type="text" id="flagReason" placeholder="理由（例：暴言・煽り行為）">
+                        <button onclick="addFlagManual()">フラグを追加</button>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ユーザーID</th>
+                                <th>理由</th>
+                                <th>日時</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="flagRows">${flagRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function addFlagManual() {
+            const userId = document.getElementById('flagUserId').value.trim();
+            const reason = document.getElementById('flagReason').value.trim();
+            if (!userId || !reason) { alert('ユーザーIDと理由を入力してください'); return; }
+            await fetch('/admin/flags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, reason }),
+            });
+            init();
+        }
+
+        async function removeFlag(id) {
+            if (!confirm('このフラグを削除しますか？')) return;
+            await fetch(`/admin/flags/${id}`, { method: 'DELETE' });
+            init();
+        }
+
+        init();
+    </script>
+</body>
+</html>

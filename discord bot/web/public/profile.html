@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プロフィール</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f1115; color: #fff; min-height: 100vh; }
+        nav {
+            background: #1a1d23;
+            border-bottom: 1px solid #2a2d35;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        nav .logo { color: #ff4655; font-weight: 700; font-size: 1.1rem; }
+        nav .nav-links { display: flex; gap: 16px; }
+        nav .nav-links a { color: #aaa; text-decoration: none; font-size: 0.9rem; }
+        nav .nav-links a:hover { color: #fff; }
+        .container { max-width: 700px; margin: 32px auto; padding: 0 20px; }
+        .profile-card {
+            background: #1a1d23;
+            border: 1px solid #2a2d35;
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+        .profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+        .profile-header img { width: 64px; height: 64px; border-radius: 50%; background: #2a2d35; }
+        .profile-header h2 { font-size: 1.3rem; }
+        .profile-header p { color: #888; font-size: 0.85rem; }
+        .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+        .stat {
+            background: #0f1115;
+            border-radius: 8px;
+            padding: 12px 20px;
+            text-align: center;
+            flex: 1;
+            min-width: 100px;
+        }
+        .stat .value { font-size: 1.5rem; font-weight: 700; }
+        .stat .label { color: #888; font-size: 0.75rem; margin-top: 4px; }
+        .stat.positive .value { color: #43b581; }
+        .stat.negative .value { color: #ff4655; }
+        .rate-btn {
+            display: inline-block;
+            background: #ff4655;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .rate-btn:hover { background: #cc3344; }
+        h3 { font-size: 1rem; margin-bottom: 12px; color: #ccc; }
+        .history-list { display: flex; flex-direction: column; gap: 8px; }
+        .history-item {
+            background: #1a1d23;
+            border: 1px solid #2a2d35;
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .history-item .badge { font-size: 1.2rem; }
+        .history-item .comment { color: #ccc; font-size: 0.85rem; }
+        .history-item .date { color: #666; font-size: 0.75rem; margin-top: 4px; }
+        .empty { color: #666; text-align: center; padding: 24px 0; }
+    </style>
+</head>
+<body>
+    <nav>
+        <span class="logo">🔥 VALORANT 募集</span>
+        <div class="nav-links">
+            <a href="/dashboard">ダッシュボード</a>
+            <a href="#" id="myProfileLink">マイプロフィール</a>
+            <a href="/auth/logout">ログアウト</a>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="profile-card" id="profileCard">
+            <div class="empty">読み込み中...</div>
+        </div>
+        <h3>📋 受け取った評価の履歴</h3>
+        <div class="history-list" id="historyList">
+            <div class="empty">読み込み中...</div>
+        </div>
+    </div>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const targetId = params.get('id');
+
+        async function init() {
+            const meRes = await fetch('/auth/me');
+            const me = await meRes.json();
+            if (!me.loggedIn) { location.href = '/'; return; }
+
+            document.getElementById('myProfileLink').href = `/profile?id=${me.user.id}`;
+
+            const userId = targetId || me.user.id;
+
+            const res = await fetch(`/api/profile/${userId}`);
+            if (!res.ok) { document.getElementById('profileCard').innerHTML = '<div class="empty">ユーザーが見つかりません</div>'; return; }
+            const data = await res.json();
+
+            const isSelf = userId === me.user.id;
+            const rateHtml = !isSelf
+                ? `<a href="/rate?id=${userId}" class="rate-btn">⭐ 評価する</a>`
+                : '';
+
+            const total = data.ratings.total;
+            const avg = data.ratings.average || 0;
+            const stars = '★'.repeat(Math.round(avg)) + '☆'.repeat(5 - Math.round(avg));
+
+            document.getElementById('profileCard').innerHTML = `
+                <div class="profile-header">
+                    <img src="${data.avatar}" alt="">
+                    <div>
+                        <h2>${data.displayName}</h2>
+                        <p>Lv.${data.level} / ${data.xp.toLocaleString()} XP / VC ${data.vcMinutes}分</p>
+                    </div>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="value">${total}</div>
+                        <div class="label">総評価数</div>
+                    </div>
+                    <div class="stat positive">
+                        <div class="value" style="color:#ffd700;font-size:1.2rem">${stars}</div>
+                        <div class="label">平均 ${avg} / 5</div>
+                    </div>
+                    <div class="stat positive">
+                        <div class="value">${data.ratings.positive}</div>
+                        <div class="label">⭐4以上</div>
+                    </div>
+                    <div class="stat negative">
+                        <div class="value">${data.ratings.negative}</div>
+                        <div class="label">⭐2以下</div>
+                    </div>
+                </div>
+                ${rateHtml}
+            `;
+
+            if (data.history.length === 0) {
+                document.getElementById('historyList').innerHTML = '<div class="empty">まだ評価がありません</div>';
+                return;
+            }
+
+            document.getElementById('historyList').innerHTML = data.history.map(h => {
+                const date = new Date(h.created_at * 1000).toLocaleDateString('ja-JP');
+                const stars = '★'.repeat(h.score) + '☆'.repeat(5 - h.score);
+                return `
+                    <div class="history-item">
+                        <span class="badge" style="color:#ffd700">${stars}</span>
+                        <div>
+                            <div class="comment">${h.comment || '（コメントなし）'}</div>
+                            <div class="date">${date}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        init();
+    </script>
+</body>
+</html>

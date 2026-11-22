@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プレイヤーを評価する</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f1115; color: #fff; min-height: 100vh; }
+        nav {
+            background: #1a1d23;
+            border-bottom: 1px solid #2a2d35;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        nav .logo { color: #ff4655; font-weight: 700; font-size: 1.1rem; }
+        nav .nav-links { display: flex; gap: 16px; }
+        nav .nav-links a { color: #aaa; text-decoration: none; font-size: 0.9rem; }
+        nav .nav-links a:hover { color: #fff; }
+        .container { max-width: 500px; margin: 48px auto; padding: 0 20px; }
+        .card {
+            background: #1a1d23;
+            border: 1px solid #2a2d35;
+            border-radius: 12px;
+            padding: 32px;
+        }
+        h2 { font-size: 1.2rem; margin-bottom: 24px; }
+        .target-info {
+            background: #0f1115;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+        .rate-buttons { display: flex; gap: 8px; margin-bottom: 20px; justify-content: center; }
+        .star-btn {
+            background: none;
+            border: none;
+            font-size: 2.5rem;
+            cursor: pointer;
+            color: #2a2d35;
+            transition: color 0.15s, transform 0.1s;
+            line-height: 1;
+        }
+        .star-btn:hover, .star-btn.active { color: #ffd700; transform: scale(1.15); }
+        .score-label {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 20px;
+            min-height: 1.2em;
+        }
+        textarea {
+            width: 100%;
+            background: #0f1115;
+            border: 1px solid #2a2d35;
+            border-radius: 8px;
+            padding: 12px;
+            color: #fff;
+            font-size: 0.9rem;
+            resize: vertical;
+            min-height: 80px;
+            margin-bottom: 20px;
+            font-family: inherit;
+        }
+        textarea:focus { outline: none; border-color: #ff4655; }
+        textarea::placeholder { color: #555; }
+        .submit-btn {
+            width: 100%;
+            background: #ff4655;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .submit-btn:hover { background: #cc3344; }
+        .submit-btn:disabled { background: #444; cursor: not-allowed; }
+        .message { margin-top: 12px; text-align: center; font-size: 0.9rem; }
+        .message.success { color: #43b581; }
+        .message.error { color: #ff4655; }
+        label { display: block; color: #888; font-size: 0.8rem; margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+    <nav>
+        <span class="logo">🔥 VALORANT 募集</span>
+        <div class="nav-links">
+            <a href="/dashboard">ダッシュボード</a>
+            <a href="#" id="myProfileLink">マイプロフィール</a>
+            <a href="/auth/logout">ログアウト</a>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="card">
+            <h2>⭐ プレイヤーを評価する</h2>
+            <div class="target-info" id="targetInfo">読み込み中...</div>
+            <div class="rate-buttons">
+                <button class="star-btn" data-score="1" onclick="select(1)">★</button>
+                <button class="star-btn" data-score="2" onclick="select(2)">★</button>
+                <button class="star-btn" data-score="3" onclick="select(3)">★</button>
+                <button class="star-btn" data-score="4" onclick="select(4)">★</button>
+                <button class="star-btn" data-score="5" onclick="select(5)">★</button>
+            </div>
+            <div class="score-label" id="scoreLabel">評価を選択してください</div>
+            <label>コメント（任意・100文字以内）</label>
+            <textarea id="comment" placeholder="楽しくプレイできました！ / 暴言あり など"></textarea>
+            <button class="submit-btn" id="submitBtn" onclick="submit()" disabled>評価を送信する</button>
+            <div class="message" id="message"></div>
+        </div>
+    </div>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const targetId = params.get('id');
+        const SCORE_LABELS = ['', '😞 とても悪かった', '😕 悪かった', '😐 普通', '😊 良かった', '🌟 とても良かった'];
+        let selectedScore = null;
+
+        async function init() {
+            const meRes = await fetch('/auth/me');
+            const me = await meRes.json();
+            if (!me.loggedIn) { location.href = '/'; return; }
+            if (!targetId) { location.href = '/dashboard'; return; }
+            if (targetId === me.user.id) {
+                document.getElementById('targetInfo').textContent = '自分自身は評価できません';
+                return;
+            }
+
+            document.getElementById('myProfileLink').href = `/profile?id=${me.user.id}`;
+            document.getElementById('targetInfo').textContent = `評価対象: ユーザーID ${targetId}`;
+        }
+
+        function select(score) {
+            selectedScore = score;
+            document.querySelectorAll('.star-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.score) <= score);
+            });
+            document.getElementById('scoreLabel').textContent = SCORE_LABELS[score];
+            document.getElementById('submitBtn').disabled = false;
+        }
+
+        async function submit() {
+            if (!selectedScore) return;
+            const comment = document.getElementById('comment').value.trim();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+
+            const res = await fetch('/api/rate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ toUserId: targetId, score: selectedScore, comment }),
+            });
+
+            const data = await res.json();
+            const msgEl = document.getElementById('message');
+
+            if (data.success) {
+                msgEl.className = 'message success';
+                msgEl.textContent = '✅ 評価を送信しました！';
+                setTimeout(() => location.href = `/profile?id=${targetId}`, 1500);
+            } else {
+                msgEl.className = 'message error';
+                msgEl.textContent = data.error || 'エラーが発生しました';
+                btn.disabled = false;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
